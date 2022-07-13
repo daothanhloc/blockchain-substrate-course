@@ -130,7 +130,7 @@ pub mod pallet {
 		}
 
 		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-		pub fn transfer_ownership(origin: OriginFor<T>, dna: Vec<u8>, newOwner: NewOwner<T>) -> DispatchResult {
+		pub fn transfer_ownership(origin: OriginFor<T>, dna: Vec<u8>, new_owner: NewOwner<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			let kitty = <Kitties<T>>::get(dna.clone());
 			ensure!(kitty.is_some(), Error::<T>::KittyNotFound);
@@ -139,21 +139,21 @@ pub mod pallet {
 
 
 			// Assign new owner for kitty
-			kitty.account = newOwner.clone();
+			kitty.account = new_owner.clone();
 			<Kitties<T>>::insert(dna.clone(), kitty);
 
 			// Update number of kitties owned by new owner
-			let mut kitties = <OwnerToKitties<T>>::get(newOwner.clone()).unwrap_or(Vec::new());
+			let mut kitties = <OwnerToKitties<T>>::get(new_owner.clone()).unwrap_or(Vec::new());
 			kitties.push(dna.clone());
 
-			<OwnerToKitties<T>>::insert(newOwner.clone(), kitties);
+			<OwnerToKitties<T>>::insert(new_owner.clone(), kitties);
 
 			// Remove kitty from old owner
 			let mut kitties = <OwnerToKitties<T>>::get(who.clone()).unwrap_or(Vec::new());
 			kitties.retain(|x| x != &dna);
 			<OwnerToKitties<T>>::insert(who.clone(), kitties);
 			// Emit an event.
-			Self::deposit_event(Event::TransferKittySuccess(dna, newOwner));
+			Self::deposit_event(Event::TransferKittySuccess(dna, new_owner));
 
 			Ok(())
 		}
