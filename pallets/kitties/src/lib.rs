@@ -20,6 +20,11 @@ use frame_system::pallet_prelude::*;
 
 use frame_support::traits::Currency;
 
+use pallet_timestamp::{self as timestamp};
+
+type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+
+
 #[frame_support::pallet]
 pub mod pallet {
 	pub use super::*;
@@ -27,9 +32,10 @@ pub mod pallet {
 	#[scale_info(skip_type_params(T))]
 	pub struct Kitty<T: Config> {
 		dna: Vec<u8>,
-		price: u32,
+		price: BalanceOf<T>,
 		gender: Gender,
 		account: T::AccountId,
+		created_date: <T as pallet_timestamp::Config>::Moment
 	}
 
 	#[derive(TypeInfo, Encode, Decode, Debug)]
@@ -45,10 +51,9 @@ pub mod pallet {
 	}
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
-	pub trait Config: frame_system::Config {
+	pub trait Config: frame_system::Config + timestamp::Config {
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
-
 		type Currency: Currency<Self::AccountId>;
 	}
 
@@ -83,7 +88,7 @@ pub mod pallet {
 	pub enum Event<T: Config> {
 		/// Event documentation should end with an array that provides descriptive names for event
 		/// parameters. [something, who]
-		KittyStored(Vec<u8>, u32),
+		KittyStored(Vec<u8>, BalanceOf<T>),
 		TransferKittySuccess(Vec<u8>, NewOwner<T>),
 	}
 
@@ -108,14 +113,15 @@ pub mod pallet {
 		/// An example dispatchable that takes a singles value as a parameter, writes the value to
 		/// storage and emits an event. This function must be dispatched by a signed extrinsic.
 		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-		pub fn create_kitty(origin: OriginFor<T>, dna: Vec<u8>, price: u32) -> DispatchResult {
+		pub fn create_kitty(origin: OriginFor<T>, dna: Vec<u8>, price: BalanceOf<T>) -> DispatchResult {
 			// Check that the extrinsic was signed and get the signer.
 			// This function will return an error if the extrinsic is not signed.
 			// https://docs.substrate.io/v3/runtime/origins
 			let who = ensure_signed(origin)?;
 			// ensure!(dna.len() > 10, Error::<T>::TooShort);
 			let gender = Self::gen_gender(dna.clone())?;
-			let kitty = Kitty { dna: dna.clone(), price, gender, account: who.clone() };
+			let _now = <timestamp::Pallet<T>>::get();			
+			let kitty = Kitty { dna: dna.clone(), price, gender, account: who.clone(), created_date: _now };
 
 			let mut kitties = <OwnerToKitties<T>>::get(who.clone()).unwrap_or(Vec::new());
 			kitties.push(dna.clone());
