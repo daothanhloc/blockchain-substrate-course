@@ -14,10 +14,11 @@ pub use pallet::*;
 // #[cfg(feature = "runtime-benchmarks")]
 // mod benchmarking;
 
-use frame_support::dispatch::fmt;
 use frame_support::inherent::Vec;
 use frame_support::pallet_prelude::*;
 use frame_system::pallet_prelude::*;
+
+use frame_support::traits::Currency;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -47,6 +48,8 @@ pub mod pallet {
 	pub trait Config: frame_system::Config {
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+
+		type Currency: Currency<Self::AccountId>;
 	}
 
 	#[pallet::pallet]
