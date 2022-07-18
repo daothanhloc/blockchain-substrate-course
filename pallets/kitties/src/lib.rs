@@ -1,24 +1,12 @@
 #![cfg_attr(not(feature = "std"), no_std)]
-
-/// Edit this file to define custom logic or remove it if it is not needed.
-/// Learn more about FRAME and the core library of Substrate FRAME pallets:
-/// <https://docs.substrate.io/v3/runtime/frame>
 pub use pallet::*;
-
-// #[cfg(test)]
-// mod mock;
-
-// #[cfg(test)]
-// mod tests;
-
-// #[cfg(feature = "runtime-benchmarks")]
-// mod benchmarking;
-
 use frame_support::inherent::Vec;
 use frame_support::pallet_prelude::*;
 use frame_system::pallet_prelude::*;
 
 use frame_support::traits::Currency;
+use frame_support::{traits::Randomness};
+use frame_support::sp_runtime::traits::{Hash};
 
 use pallet_timestamp::{self as timestamp};
 
@@ -31,7 +19,7 @@ pub mod pallet {
 	#[derive(TypeInfo, Default, Encode, Decode)]
 	#[scale_info(skip_type_params(T))]
 	pub struct Kitty<T: Config> {
-		dna: Vec<u8>,
+		dna: T::Hash,
 		price: BalanceOf<T>,
 		gender: Gender,
 		account: T::AccountId,
@@ -55,6 +43,7 @@ pub mod pallet {
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 		type Currency: Currency<Self::AccountId>;
+		type KittyRandomness: Randomness<Self::Hash, Self::BlockNumber>;
 	}
 
 	#[pallet::pallet]
@@ -75,11 +64,15 @@ pub mod pallet {
 	//value : kitty
 	#[pallet::storage]
 	#[pallet::getter(fn kitties)]
-	pub(super) type Kitties<T: Config> = StorageMap<_, Blake2_128Concat, Vec<u8>, Kitty<T>, OptionQuery>;
+	pub(super) type Kitties<T: Config> = StorageMap<_, Twox64Concat, T::Hash, Kitty<T>, OptionQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn owner_to_kitties)]
-	pub(super) type OwnerToKitties<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, Vec<Vec<u8>>, OptionQuery>;
+	pub(super) type OwnerToKitties<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, Vec<T::Hash>, OptionQuery>;
+
+	#[pallet::storage]
+    #[pallet::getter(fn get_nonce)]
+    pub(super) type Nonce<T: Config> = StorageValue<_, u64, ValueQuery>;
 
 	// Pallets use events to inform users when important changes are made.
 	// https://docs.substrate.io/v3/runtime/events-and-errors
@@ -88,8 +81,8 @@ pub mod pallet {
 	pub enum Event<T: Config> {
 		/// Event documentation should end with an array that provides descriptive names for event
 		/// parameters. [something, who]
-		KittyStored(Vec<u8>, BalanceOf<T>),
-		TransferKittySuccess(Vec<u8>, NewOwner<T>),
+		KittyStored(T::Hash, BalanceOf<T>),
+		TransferKittySuccess(T::Hash, NewOwner<T>),
 	}
 
 	// Errors inform users that something went wrong.
@@ -113,18 +106,22 @@ pub mod pallet {
 		/// An example dispatchable that takes a singles value as a parameter, writes the value to
 		/// storage and emits an event. This function must be dispatched by a signed extrinsic.
 		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-		pub fn create_kitty(origin: OriginFor<T>, dna: Vec<u8>, price: BalanceOf<T>) -> DispatchResult {
+		pub fn create_kitty(origin: OriginFor<T>, price: BalanceOf<T>) -> DispatchResult {
 			// Check that the extrinsic was signed and get the signer.
 			// This function will return an error if the extrinsic is not signed.
 			// https://docs.substrate.io/v3/runtime/origins
 			let who = ensure_signed(origin)?;
+
+			// generate random hash
+			let dna = Self::random_hash(&who);
+
 			// ensure!(dna.len() > 10, Error::<T>::TooShort);
-			let gender = Self::gen_gender(dna.clone())?;
+			let gender = Self::gen_gender(dna)?;
 			let _now = <timestamp::Pallet<T>>::get();			
-			let kitty = Kitty { dna: dna.clone(), price, gender, account: who.clone(), created_date: _now };
+			let kitty = Kitty { dna: dna, price, gender, account: who.clone(), created_date: _now };
 
 			let mut kitties = <OwnerToKitties<T>>::get(who.clone()).unwrap_or(Vec::new());
-			kitties.push(dna.clone());
+			kitties.push(dna);
 
 			<OwnerToKitties<T>>::insert(who.clone(), kitties);
 
@@ -132,6 +129,8 @@ pub mod pallet {
 			<Kitties<T>>::insert(dna.clone(), kitty);
 			number_of_kitties += 1;
 			NumberOfKitties::<T>::put(number_of_kitties);
+
+			let _nonce = Self::increment_nonce();
 			// Emit an event.
 			Self::deposit_event(Event::KittyStored(dna, price));
 			// Return a successful DispatchResultWithPostInfo
@@ -139,9 +138,9 @@ pub mod pallet {
 		}
 
 		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-		pub fn transfer_ownership(origin: OriginFor<T>, dna: Vec<u8>, new_owner: NewOwner<T>) -> DispatchResult {
+		pub fn transfer_ownership(origin: OriginFor<T>, dna: T::Hash, new_owner: NewOwner<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			let kitty = <Kitties<T>>::get(dna.clone());
+			let kitty = <Kitties<T>>::get(dna);
 			ensure!(kitty.is_some(), Error::<T>::KittyNotFound);
 			let mut kitty = kitty.unwrap();
 			ensure!(kitty.account == who, Error::<T>::NotOwner);
@@ -149,11 +148,11 @@ pub mod pallet {
 
 			// Assign new owner for kitty
 			kitty.account = new_owner.clone();
-			<Kitties<T>>::insert(dna.clone(), kitty);
+			<Kitties<T>>::insert(dna, kitty);
 
 			// Update number of kitties owned by new owner
 			let mut kitties = <OwnerToKitties<T>>::get(new_owner.clone()).unwrap_or(Vec::new());
-			kitties.push(dna.clone());
+			kitties.push(dna);
 
 			<OwnerToKitties<T>>::insert(new_owner.clone(), kitties);
 
@@ -166,28 +165,32 @@ pub mod pallet {
 
 			Ok(())
 		}
-
-
-		
 	}
-}
 
-// helper function
-
-impl<T> Pallet<T> {
-	fn gen_gender(name: Vec<u8>) -> Result<Gender, Error<T>> {
-		let mut res = Gender::Male;
-		if name.len() % 2 == 0 {
-			res = Gender::Female;
+	// Helper function
+	impl<T: Config> Pallet<T> {
+		fn gen_gender(dna: T::Hash) -> Result<Gender, Error<T>> {
+			let mut res = Gender::Male;
+			if dna.as_ref()[0] % 2 == 0 {
+				res = Gender::Female;
+			}
+			Ok(res)
 		}
-		Ok(res)
+
+		fn increment_nonce() -> DispatchResult {
+			<Nonce<T>>::try_mutate(|nonce| {
+				let next = nonce.checked_add(1).ok_or("Overflow")?; // TODO Part III: Add error handling
+				*nonce = next;
+				
+				Ok(().into())
+			})
+		}
+
+		fn random_hash(sender: &T::AccountId) -> T::Hash {
+            let nonce = <Nonce<T>>::get();
+            let seed = T::KittyRandomness::random_seed();
+
+            T::Hashing::hash_of(&(seed, &sender, nonce))
+        }
 	}
 }
-
-// Tóm tắt:
-//Custom type: Struct ,Enum
-// Sử dụng generic type đối với trait
-// helper function
-// origin
-// một số method cơ bản liên quan tới read/write storage
-// giải quuêys một số bug có thể có .
