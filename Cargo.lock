@@ -3771,6 +3771,7 @@ dependencies = [
  "pallet-demo",
  "pallet-grandpa",
  "pallet-kitties",
+ "pallet-kitty-limit",
  "pallet-loosely-coupling",
  "pallet-randomness-collective-flip",
  "pallet-sudo",
@@ -4049,7 +4050,23 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
+ "log",
+ "pallet-kitty-limit",
  "pallet-timestamp",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+]
+
+[[package]]
+name = "pallet-kitty-limit"
+version = "4.0.0-dev"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
  "parity-scale-codec",
  "scale-info",
  "sp-core",

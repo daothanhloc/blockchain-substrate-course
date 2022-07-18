@@ -4,11 +4,12 @@ use frame_support::inherent::Vec;
 use frame_support::pallet_prelude::*;
 use frame_system::pallet_prelude::*;
 
-use frame_support::traits::Currency;
+use frame_support::traits::{Currency, Get};
 use frame_support::{traits::Randomness};
 use frame_support::sp_runtime::traits::{Hash};
 
 use pallet_timestamp::{self as timestamp};
+use pallet_kitty_limit::KittyLimit;
 
 type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
@@ -44,6 +45,7 @@ pub mod pallet {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 		type Currency: Currency<Self::AccountId>;
 		type KittyRandomness: Randomness<Self::Hash, Self::BlockNumber>;
+		type KittyLimit: KittyLimit;
 	}
 
 	#[pallet::pallet]
@@ -68,7 +70,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn owner_to_kitties)]
-	pub(super) type OwnerToKitties<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, Vec<T::Hash>, OptionQuery>;
+	pub(super) type OwnerToKitties<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, Vec<T::Hash> , OptionQuery>;
 
 	#[pallet::storage]
     #[pallet::getter(fn get_nonce)]
@@ -83,6 +85,7 @@ pub mod pallet {
 		/// parameters. [something, who]
 		KittyStored(T::Hash, BalanceOf<T>),
 		TransferKittySuccess(T::Hash, NewOwner<T>),
+		SetLimitKittySuccess
 	}
 
 	// Errors inform users that something went wrong.
@@ -93,7 +96,8 @@ pub mod pallet {
 		/// Errors should have helpful documentation associated with them.
 		StorageOverflow,
 		KittyNotFound,
-		NotOwner
+		NotOwner,
+		OverKittyLimit,
 	}
 
 	// Dispatchable functions allows users to interact with the pallet and invoke state changes.
@@ -111,6 +115,7 @@ pub mod pallet {
 			// This function will return an error if the extrinsic is not signed.
 			// https://docs.substrate.io/v3/runtime/origins
 			let who = ensure_signed(origin)?;
+			log::info!("create_kitty: {:?}", T::KittyLimit::get() as usize);
 
 			// generate random hash
 			let dna = Self::random_hash(&who);
@@ -121,6 +126,7 @@ pub mod pallet {
 			let kitty = Kitty { dna: dna, price, gender, account: who.clone(), created_date: _now };
 
 			let mut kitties = <OwnerToKitties<T>>::get(who.clone()).unwrap_or(Vec::new());
+			ensure!(kitties.len() + 1 <= T::KittyLimit::get().try_into().unwrap_or(1000), Error::<T>::OverKittyLimit);
 			kitties.push(dna);
 
 			<OwnerToKitties<T>>::insert(who.clone(), kitties);
@@ -162,6 +168,16 @@ pub mod pallet {
 			<OwnerToKitties<T>>::insert(who.clone(), kitties);
 			// Emit an event.
 			Self::deposit_event(Event::TransferKittySuccess(dna, new_owner));
+
+			Ok(())
+		}
+
+		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+		pub fn set_limit_kitty(origin: OriginFor<T>, value: u32) -> DispatchResult {
+			let _ = ensure_signed(origin)?;
+			let _limit = T::KittyLimit::set(value);
+			// Emit an event.
+			Self::deposit_event(Event::SetLimitKittySuccess);
 
 			Ok(())
 		}

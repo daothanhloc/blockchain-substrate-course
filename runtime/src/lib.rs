@@ -45,6 +45,7 @@ pub use sp_runtime::{Perbill, Permill};
 
 pub use pallet_demo;
 pub use pallet_kitties;
+pub use pallet_kitty_limit;
 /// Import the template pallet.
 pub use pallet_template;
 pub use pallet_tightly_coupling;
@@ -278,9 +279,14 @@ impl pallet_kitties::Config for Runtime {
 	type Event = Event;
 	type Currency = Balances;
 	type KittyRandomness = RandomnessCollectiveFlip;
+	type KittyLimit = KittiesLimit;
 }
 
 impl pallet_tightly_coupling::Config for Runtime {
+	type Event = Event;
+}
+
+impl pallet_kitty_limit::Config for Runtime {
 	type Event = Event;
 }
 
@@ -308,6 +314,7 @@ construct_runtime!(
 		TemplateModule: pallet_template,
 		DemoModule: pallet_demo,
 		KittiesModule: pallet_kitties,
+		KittiesLimit: pallet_kitty_limit,
 		Tightly: pallet_tightly_coupling,
 		Loosely: pallet_loosely_coupling,
 	}
