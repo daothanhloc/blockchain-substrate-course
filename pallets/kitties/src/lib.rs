@@ -12,6 +12,8 @@ use pallet_kitty_limit::KittyLimit;
 
 type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -178,6 +180,7 @@ pub mod pallet {
 			let mut kitties = <OwnerToKitties<T>>::get(who.clone()).unwrap_or(Vec::new());
 			kitties.retain(|x| x != &dna);
 			<OwnerToKitties<T>>::insert(who.clone(), kitties);
+
 			// Emit an event.
 			Self::deposit_event(Event::TransferKittySuccess(dna, new_owner));
 

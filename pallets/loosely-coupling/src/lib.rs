@@ -6,14 +6,14 @@
 pub use pallet::*;
 use frame_support::sp_runtime::DispatchResult;
 
-#[cfg(test)]
-mod mock;
+// #[cfg(test)]
+// mod mock;
 
-#[cfg(test)]
-mod tests;
+// #[cfg(test)]
+// mod tests;
 
-#[cfg(feature = r#"runtime-benchmarks"#)]
-mod benchmarking;
+// #[cfg(feature = r#"runtime-benchmarks"#)]
+// mod benchmarking;
 
 use frame_support::pallet_prelude::*;
 use frame_system::pallet_prelude::*;
