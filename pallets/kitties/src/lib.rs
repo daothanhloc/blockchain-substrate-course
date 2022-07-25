@@ -157,7 +157,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+		#[pallet::weight(23_000 + T::DbWeight::get().writes(1))]
 		pub fn transfer_ownership(origin: OriginFor<T>, dna: T::Hash, new_owner: NewOwner<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			let kitty = <Kitties<T>>::get(dna);
