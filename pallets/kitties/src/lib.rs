@@ -1,7 +1,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 pub use pallet::*;
-use frame_support::inherent::Vec;
-use frame_support::pallet_prelude::*;
+use frame_support::{dispatch::fmt, inherent::Vec, pallet_prelude::*};
 use frame_system::pallet_prelude::*;
 
 use frame_support::traits::{Currency, Get};
@@ -25,6 +24,18 @@ pub mod pallet {
 		gender: Gender,
 		account: T::AccountId,
 		created_date: <T as pallet_timestamp::Config>::Moment
+	}
+
+	impl<T: Config> fmt::Debug for Kitty<T> {
+		fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+			f.debug_struct("Kitty")
+			 .field("dna", &self.dna)
+			 .field("price", &self.price)
+			 .field("gender", &self.gender)
+			 .field("account", &self.account)
+			 .field("created_date", &self.created_date)
+			 .finish()
+		}
 	}
 
 	#[derive(TypeInfo, Encode, Decode, Debug)]
@@ -115,7 +126,6 @@ pub mod pallet {
 			// This function will return an error if the extrinsic is not signed.
 			// https://docs.substrate.io/v3/runtime/origins
 			let who = ensure_signed(origin)?;
-			log::info!("create_kitty: {:?}", T::KittyLimit::get() as usize);
 
 			// generate random hash
 			let dna = Self::random_hash(&who);
@@ -124,10 +134,12 @@ pub mod pallet {
 			let gender = Self::gen_gender(dna)?;
 			let _now = <timestamp::Pallet<T>>::get();			
 			let kitty = Kitty { dna: dna, price, gender, account: who.clone(), created_date: _now };
+			log::warn!("create_kitty: {:?}", kitty);
 
 			let mut kitties = <OwnerToKitties<T>>::get(who.clone()).unwrap_or(Vec::new());
 			ensure!(kitties.len() + 1 <= T::KittyLimit::get().try_into().unwrap_or(1000), Error::<T>::OverKittyLimit);
 			kitties.push(dna);
+
 
 			<OwnerToKitties<T>>::insert(who.clone(), kitties);
 

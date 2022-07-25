@@ -14,9 +14,7 @@ pub use pallet::*;
 // #[cfg(feature = "runtime-benchmarks")]
 // mod benchmarking;
 
-use frame_support::dispatch::fmt;
-use frame_support::inherent::Vec;
-use frame_support::pallet_prelude::*;
+use frame_support::{dispatch::fmt, inherent::Vec, pallet_prelude::*};
 use frame_system::pallet_prelude::*;
 
 #[frame_support::pallet]
@@ -30,9 +28,20 @@ pub mod pallet {
 		gender: Gender,
 		account: T::AccountId,
 	}
+
+	impl<T: Config> fmt::Debug for Students<T> {
+		fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+			f.debug_struct("Students")
+			 .field("name", &self.name)
+			 .field("age", &self.gender)
+			 .field("account", &self.account)
+			 .finish()
+		}
+	}
+
 	pub type Id = u32;
 
-	#[derive(TypeInfo, Encode, Decode, Debug)]
+	#[derive(TypeInfo, Encode, Decode, Debug, Clone)]
 	pub enum Gender {
 		Male,
 		Female,
@@ -106,10 +115,14 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 			ensure!(age > 20, Error::<T>::TooYoung);
 			let gender = Self::gen_gender(name.clone())?;
-			let student = Students { name: name.clone(), age, gender, account: who };
+			let student = Students { name: name.clone(), age, gender: gender.clone(), account: who };
 			// let current_id = Self::student_id();
 			// let current_id = StudentId::<T>::get();
 			let mut current_id = <StudentId<T>>::get();
+
+			log::info!("Current id : {}", current_id);
+			log::info!("Genderr : {:?}", gender);
+			log::warn!("Student : {:?}", &student);
 
 			// Student::<T>::insert(current_id, student);
 			<Student<T>>::insert(current_id, student);
