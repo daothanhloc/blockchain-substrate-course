@@ -5,11 +5,11 @@
 /// <https://docs.substrate.io/v3/runtime/frame>
 pub use pallet::*;
 
-// #[cfg(test)]
-// mod mock;
+#[cfg(test)]
+mod mock;
 
-// #[cfg(test)]
-// mod tests;
+#[cfg(test)]
+mod tests;
 
 // #[cfg(feature = "runtime-benchmarks")]
 // mod benchmarking;
@@ -23,9 +23,9 @@ pub mod pallet {
 	#[derive(TypeInfo, Default, Encode, Decode)]
 	#[scale_info(skip_type_params(T))]
 	pub struct Students<T: Config> {
-		name: Vec<u8>,
-		age: u8,
-		gender: Gender,
+		pub name: Vec<u8>,
+		pub age: u8,
+		pub gender: Gender,
 		account: T::AccountId,
 	}
 
@@ -41,7 +41,7 @@ pub mod pallet {
 
 	pub type Id = u32;
 
-	#[derive(TypeInfo, Encode, Decode, Debug, Clone)]
+	#[derive(TypeInfo, Encode, Decode, Debug, Clone, PartialEq)]
 	pub enum Gender {
 		Male,
 		Female,
@@ -96,6 +96,7 @@ pub mod pallet {
 		TooYoung,
 		/// Errors should have helpful documentation associated with them.
 		StorageOverflow,
+		TooShort,
 	}
 
 	// Dispatchable functions allows users to interact with the pallet and invoke state changes.
@@ -114,6 +115,8 @@ pub mod pallet {
 			// https://docs.substrate.io/v3/runtime/origins
 			let who = ensure_signed(origin)?;
 			ensure!(age > 20, Error::<T>::TooYoung);
+			log::info!("create_student: {:?}", name.len());
+			ensure!(name.len() >= 10, Error::<T>::TooShort);
 			let gender = Self::gen_gender(name.clone())?;
 			let student = Students { name: name.clone(), age, gender: gender.clone(), account: who };
 			// let current_id = Self::student_id();
