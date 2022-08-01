@@ -1,10 +1,10 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use frame_support::sp_runtime::DispatchResult;
 /// Edit this file to define custom logic or remove it if it is not needed.
 /// Learn more about FRAME and the core library of Substrate FRAME pallets:
 /// <https://docs.substrate.io/v3/runtime/frame>
 pub use pallet::*;
-use frame_support::sp_runtime::DispatchResult;
 
 #[cfg(test)]
 mod mock;
@@ -60,6 +60,25 @@ pub mod pallet {
 		StorageOverflow,
 	}
 
+	#[pallet::genesis_config]
+	pub struct GenesisConfig {
+		pub genesis_value: u32,
+	}
+
+	#[cfg(feature = "std")]
+	impl Default for GenesisConfig {
+		fn default() -> Self {
+			Self { genesis_value: Default::default() }
+		}
+	}
+
+	#[pallet::genesis_build]
+	impl<T: Config> GenesisBuild<T> for GenesisConfig {
+		fn build(&self) {
+			Something::<T>::put(self.genesis_value);
+		}
+	}
+
 	// Dispatchable functions allows users to interact with the pallet and invoke state changes.
 	// These functions materialize as "extrinsics", which are often compared to transactions.
 	// Dispatchable functions must be annotated with a weight and must return a DispatchResult.
@@ -104,7 +123,7 @@ pub mod pallet {
 	}
 }
 
-impl <T:Config> Pallet<T> {
+impl<T: Config> Pallet<T> {
 	pub fn update_storage(something: u32) -> DispatchResult {
 		<Something<T>>::put(something);
 
@@ -115,8 +134,8 @@ impl <T:Config> Pallet<T> {
 pub trait DoSome {
 	fn increase_value(value: u32) -> u32;
 }
-	
-impl <T:Config> DoSome for Pallet<T> {
+
+impl<T: Config> DoSome for Pallet<T> {
 	fn increase_value(value: u32) -> u32 {
 		value + 5
 	}
