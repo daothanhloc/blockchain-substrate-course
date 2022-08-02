@@ -62,6 +62,35 @@ pub mod pallet {
 		type KittyLimit: KittyLimit;
 	}
 
+	#[pallet::genesis_config]
+	pub struct GenesisConfig<T: Config> {
+		pub kitties: Vec<(T::AccountId, BalanceOf<T>)>,
+	}
+
+	#[cfg(feature = "std")]
+	impl<T: Config> Default for GenesisConfig<T> {
+		fn default() -> Self {
+			Self { kitties: Default::default() }
+		}
+	}
+
+	#[pallet::genesis_build]
+	impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
+		fn build(&self) {
+			let mut i = 0;
+			for (owner, price) in &self.kitties {
+				let call_origin = <T as frame_system::Config>::Origin::from(
+					frame_system::RawOrigin::Signed(owner.clone()),
+				);
+				if i == 0 {
+					let _a = Pallet::<T>::set_limit_kitty(call_origin.clone(), 10);
+				}
+				let _ = Pallet::<T>::create_kitty(call_origin, *price);
+				i = 1;
+			}
+		}
+	}
+
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
 	#[pallet::without_storage_info]
