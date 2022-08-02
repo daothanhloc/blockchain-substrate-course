@@ -1,16 +1,17 @@
 #![cfg_attr(not(feature = "std"), no_std)]
-pub use pallet::*;
 use frame_support::{dispatch::fmt, inherent::Vec, pallet_prelude::*};
 use frame_system::pallet_prelude::*;
+pub use pallet::*;
 
+use frame_support::sp_runtime::traits::Hash;
+use frame_support::traits::Randomness;
 use frame_support::traits::{Currency, Get};
-use frame_support::{traits::Randomness};
-use frame_support::sp_runtime::traits::{Hash};
 
-use pallet_timestamp::{self as timestamp};
 use pallet_kitty_limit::KittyLimit;
+use pallet_timestamp::{self as timestamp};
 
-type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+type BalanceOf<T> =
+	<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
@@ -25,18 +26,18 @@ pub mod pallet {
 		price: BalanceOf<T>,
 		gender: Gender,
 		account: T::AccountId,
-		created_date: <T as pallet_timestamp::Config>::Moment
+		created_date: <T as pallet_timestamp::Config>::Moment,
 	}
 
 	impl<T: Config> fmt::Debug for Kitty<T> {
 		fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 			f.debug_struct("Kitty")
-			 .field("dna", &self.dna)
-			 .field("price", &self.price)
-			 .field("gender", &self.gender)
-			 .field("account", &self.account)
-			 .field("created_date", &self.created_date)
-			 .finish()
+				.field("dna", &self.dna)
+				.field("price", &self.price)
+				.field("gender", &self.gender)
+				.field("account", &self.account)
+				.field("created_date", &self.created_date)
+				.finish()
 		}
 	}
 
@@ -79,15 +80,17 @@ pub mod pallet {
 	//value : kitty
 	#[pallet::storage]
 	#[pallet::getter(fn kitties)]
-	pub(super) type Kitties<T: Config> = StorageMap<_, Twox64Concat, T::Hash, Kitty<T>, OptionQuery>;
+	pub(super) type Kitties<T: Config> =
+		StorageMap<_, Twox64Concat, T::Hash, Kitty<T>, OptionQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn owner_to_kitties)]
-	pub(super) type OwnerToKitties<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, Vec<T::Hash> , OptionQuery>;
+	pub(super) type OwnerToKitties<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AccountId, Vec<T::Hash>, OptionQuery>;
 
 	#[pallet::storage]
-    #[pallet::getter(fn get_nonce)]
-    pub(super) type Nonce<T: Config> = StorageValue<_, u64, ValueQuery>;
+	#[pallet::getter(fn get_nonce)]
+	pub(super) type Nonce<T: Config> = StorageValue<_, u64, ValueQuery>;
 
 	// Pallets use events to inform users when important changes are made.
 	// https://docs.substrate.io/v3/runtime/events-and-errors
@@ -98,7 +101,7 @@ pub mod pallet {
 		/// parameters. [something, who]
 		KittyStored(T::Hash, BalanceOf<T>),
 		TransferKittySuccess(T::Hash, NewOwner<T>),
-		SetLimitKittySuccess
+		SetLimitKittySuccess,
 	}
 
 	// Errors inform users that something went wrong.
@@ -134,14 +137,16 @@ pub mod pallet {
 
 			// ensure!(dna.len() > 10, Error::<T>::TooShort);
 			let gender = Self::gen_gender(dna)?;
-			let _now = <timestamp::Pallet<T>>::get();			
-			let kitty = Kitty { dna: dna, price, gender, account: who.clone(), created_date: _now };
+			let _now = <timestamp::Pallet<T>>::get();
+			let kitty = Kitty { dna, price, gender, account: who.clone(), created_date: _now };
 			log::warn!("create_kitty: {:?}", kitty);
 
 			let mut kitties = <OwnerToKitties<T>>::get(who.clone()).unwrap_or(Vec::new());
-			ensure!(kitties.len() + 1 <= T::KittyLimit::get().try_into().unwrap_or(1000), Error::<T>::OverKittyLimit);
+			ensure!(
+				kitties.len() + 1 <= T::KittyLimit::get().try_into().unwrap_or(1000),
+				Error::<T>::OverKittyLimit
+			);
 			kitties.push(dna);
-
 
 			<OwnerToKitties<T>>::insert(who.clone(), kitties);
 
@@ -158,13 +163,16 @@ pub mod pallet {
 		}
 
 		#[pallet::weight(23_000 + T::DbWeight::get().writes(1))]
-		pub fn transfer_ownership(origin: OriginFor<T>, dna: T::Hash, new_owner: NewOwner<T>) -> DispatchResult {
+		pub fn transfer_ownership(
+			origin: OriginFor<T>,
+			dna: T::Hash,
+			new_owner: NewOwner<T>,
+		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			let kitty = <Kitties<T>>::get(dna);
 			ensure!(kitty.is_some(), Error::<T>::KittyNotFound);
 			let mut kitty = kitty.unwrap();
 			ensure!(kitty.account == who, Error::<T>::NotOwner);
-
 
 			// Assign new owner for kitty
 			kitty.account = new_owner.clone();
@@ -212,16 +220,16 @@ pub mod pallet {
 			<Nonce<T>>::try_mutate(|nonce| {
 				let next = nonce.checked_add(1).ok_or("Overflow")?; // TODO Part III: Add error handling
 				*nonce = next;
-				
+
 				Ok(().into())
 			})
 		}
 
 		fn random_hash(sender: &T::AccountId) -> T::Hash {
-            let nonce = <Nonce<T>>::get();
-            let seed = T::KittyRandomness::random_seed();
+			let nonce = <Nonce<T>>::get();
+			let seed = T::KittyRandomness::random_seed();
 
-            T::Hashing::hash_of(&(seed, &sender, nonce))
-        }
+			T::Hashing::hash_of(&(seed, &sender, nonce))
+		}
 	}
 }
