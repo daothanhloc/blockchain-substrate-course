@@ -53,6 +53,8 @@ pallet-template = { version = "4.0.0-dev", default-features = false, path = "../
 pallet-demo = { version = "4.0.0-dev", default-features = false, path = "../pallets/demo" }
 pallet-kitties = { version = "4.0.0-dev", default-features = false, path = "../pallets/kitties" }
 pallet-kitty-limit = { version = "4.0.0-dev", default-features = false, path = "../pallets/kitty-limit" }
+pallet-charity = { version = "4.0.0-dev", default-features = false, path = "../pallets/charity" }
+
 
 
 # Pallet tightly

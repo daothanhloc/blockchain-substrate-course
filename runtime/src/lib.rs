@@ -43,13 +43,14 @@ use pallet_transaction_payment::CurrencyAdapter;
 pub use sp_runtime::BuildStorage;
 pub use sp_runtime::{Perbill, Permill};
 
+pub use pallet_charity;
 pub use pallet_demo;
 pub use pallet_kitties;
 pub use pallet_kitty_limit;
+pub use pallet_loosely_coupling;
 /// Import the template pallet.
 pub use pallet_template;
 pub use pallet_tightly_coupling;
-pub use pallet_loosely_coupling;
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -275,6 +276,10 @@ impl pallet_demo::Config for Runtime {
 	type Event = Event;
 }
 
+impl pallet_charity::Config for Runtime {
+	type Event = Event;
+}
+
 impl pallet_kitties::Config for Runtime {
 	type Event = Event;
 	type Currency = Balances;
@@ -299,26 +304,26 @@ impl pallet_nicks::Config for Runtime {
 	// The Balances pallet implements the ReservableCurrency trait.
 	// `Balances` is defined in `construct_runtime!` macro.
 	type Currency = Balances;
-	
+
 	// Set ReservationFee to a value.
 	type ReservationFee = ConstU128<100>;
-	
+
 	// No action is taken when deposits are forfeited.
 	type Slashed = ();
-	
+
 	// Configure the FRAME System Root origin as the Nick pallet admin.
 	// https://paritytech.github.io/substrate/master/frame_system/enum.RawOrigin.html#variant.Root
 	type ForceOrigin = frame_system::EnsureRoot<AccountId>;
-	
+
 	// Set MinLength of nick name to a desired value.
 	type MinLength = ConstU32<8>;
-	
+
 	// Set MaxLength of nick name to a desired value.
 	type MaxLength = ConstU32<32>;
-	
+
 	// The ubiquitous event type.
 	type Event = Event;
-	}
+}
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
@@ -343,6 +348,7 @@ construct_runtime!(
 		Tightly: pallet_tightly_coupling,
 		Loosely: pallet_loosely_coupling,
 		Nicks: pallet_nicks,
+		Charity: pallet_charity,
 	}
 );
 
