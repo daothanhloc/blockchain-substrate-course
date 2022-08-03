@@ -31,6 +31,7 @@ pub mod pallet {
 		pub title: Vec<u8>,
 		pub description: Vec<u8>,
 		pub goal: u32,
+		pub balance: u32,
 		pub beneficiary: T::AccountId,
 		pub start_date: <T as pallet_timestamp::Config>::Moment,
 		pub end_date: <T as pallet_timestamp::Config>::Moment,
@@ -66,15 +67,17 @@ pub mod pallet {
 		/// Event documentation should end with an array that provides descriptive names for event
 		/// parameters. [something, who]
 		CampaignStored(u32, T::AccountId),
+		DonateSuccess(u32, T::AccountId),
 	}
 
 	// Errors inform users that something went wrong.
 	#[pallet::error]
 	pub enum Error<T> {
 		/// Error names should be descriptive.
-		NoneValue,
+		CampaignNotFound,
+		AmountOverflowGoal,
 		/// Errors should have helpful documentation associated with them.
-		StorageOverflow,
+		OutOfPeriod,
 	}
 
 	// Dispatchable functions allows users to interact with the pallet and invoke state changes.
@@ -97,26 +100,38 @@ pub mod pallet {
 			let mut id = <NumberOfCampaign<T>>::get();
 			id += 1;
 			<NumberOfCampaign<T>>::put(id);
-			let campaign =
-				Campaign { id, title, description, goal, beneficiary, start_date, end_date };
+			let campaign = Campaign {
+				id,
+				title,
+				description,
+				goal,
+				balance: 0u32,
+				beneficiary,
+				start_date,
+				end_date,
+			};
 			<Campaigns<T>>::insert(id, campaign);
 			Self::deposit_event(Event::CampaignStored(id, sender));
 			Ok(())
 		}
 
-		// #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-		// pub fn donateToCampaign(
-		// 	origin: OriginFor<T>,
-		// 	campaign_id: u32,
-		// 	amount: u32,
-		// ) -> DispatchResult {
-		// 	let who = ensure_signed(origin)?;
-		// 	let campaign = Self::campaign(campaign_id)?;
-		// 	ensure!(campaign.end_date > <timestamp::Pallet<T>>::get(), Error::<T>::NoneValue);
-		// 	ensure!(amount <= campaign.goal, Error::<T>::StorageOverflow);
-		// 	<Something<T>>::mutate(campaign_id, |something| *something += amount);
-		// 	Self::deposit_event(Event::SomethingStored(campaign_id, who));
-		// 	Ok(())
-		// }
+		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+		pub fn donate_to_campaign(
+			origin: OriginFor<T>,
+			campaign_id: u32,
+			amount: u32,
+		) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+			let campaign = <Campaigns<T>>::get(campaign_id);
+			ensure!(campaign.is_some(), Error::<T>::CampaignNotFound);
+			let mut campaign = campaign.unwrap();
+			ensure!(campaign.start_date <= <timestamp::Pallet<T>>::get(), Error::<T>::OutOfPeriod);
+			ensure!(campaign.end_date >= <timestamp::Pallet<T>>::get(), Error::<T>::OutOfPeriod);
+			ensure!(campaign.goal - campaign.balance >= amount, Error::<T>::AmountOverflowGoal);
+			campaign.balance += amount;
+			<Campaigns<T>>::insert(campaign_id, campaign);
+			Self::deposit_event(Event::DonateSuccess(amount, who));
+			Ok(())
+		}
 	}
 }
